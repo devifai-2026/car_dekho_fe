@@ -2,7 +2,7 @@
 // - Dev: empty -> same-origin, Vite proxies /api + /socket.io to the local backend.
 // - Prod: use VITE_API_URL if set (Netlify env), else fall back to the deployed backend
 //   so the app never silently connects to its own static host (which has no socket server).
-const FALLBACK_API_URL = 'https://mediumspringgreen-elk-681001.hostingersite.com';
+const FALLBACK_API_URL = 'https://car-dekho-be.onrender.com';
 export const API_URL =
   import.meta.env.VITE_API_URL || (import.meta.env.PROD ? FALLBACK_API_URL : '');
 
