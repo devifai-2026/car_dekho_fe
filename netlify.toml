@@ -1,0 +1,16 @@
+# Netlify config for the CarDekho frontend (this repo's root is the Vite client).
+# Set VITE_API_URL in Netlify → Site settings → Environment variables to your
+# Render backend URL (e.g. https://car-dekho-be.onrender.com) before building.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback — all routes serve index.html (client-side app).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
