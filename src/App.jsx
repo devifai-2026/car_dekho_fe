@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { socket } from './socket.js';
+import { pingHealth } from './utils/api.js';
 import Home from './pages/Home.jsx';
 import Results from './pages/Results.jsx';
 import NarratedLoader from './components/NarratedLoader.jsx';
@@ -17,6 +18,20 @@ export default function App() {
   const [intentPreview, setIntentPreview] = useState(null);
   const [error, setError] = useState(null);
   const [lastQuery, setLastQuery] = useState({ text: '', chips: [] });
+  const [waking, setWaking] = useState(false);
+
+  // Warm the backend on load (Render free dynos spin down) so the first
+  // recommend isn't blocked by a cold start. Shows a subtle hint if it's slow.
+  useEffect(() => {
+    let done = false;
+    const slow = setTimeout(() => !done && setWaking(true), 1500);
+    pingHealth().finally(() => {
+      done = true;
+      clearTimeout(slow);
+      setWaking(false);
+    });
+    return () => clearTimeout(slow);
+  }, []);
 
   useEffect(() => {
     const onIntent = (intent) => {
@@ -64,6 +79,10 @@ export default function App() {
 
   return (
     <div className="app">
+      {waking && view === 'home' && (
+        <div className="waking">Waking up the engine… (first load can take a few seconds)</div>
+      )}
+
       {view === 'home' && <Home onSubmit={submit} initial={lastQuery} />}
 
       {view === 'loading' && <NarratedLoader label={STEPS[step]} step={step} />}
