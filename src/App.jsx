@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { socket } from './socket.js';
 import { pingHealth } from './utils/api.js';
 import Home from './pages/Home.jsx';
@@ -33,6 +33,12 @@ export default function App() {
     return () => clearTimeout(slow);
   }, []);
 
+  const safetyTimer = useRef(null);
+  const clearSafety = () => {
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    safetyTimer.current = null;
+  };
+
   useEffect(() => {
     const onIntent = (intent) => {
       setIntentPreview(intent);
@@ -40,10 +46,14 @@ export default function App() {
     };
     const onCandidates = () => setStep('building');
     const onShortlist = (payload) => {
+      clearSafety(); // cars are here — the slow part is done
       setData(payload);
       setView('results');
     };
+    // Expert's picks arrive a moment after the shortlist (separate, slower call).
+    const onExpertPicks = (picks) => setData((prev) => (prev ? { ...prev, expertPicks: picks } : prev));
     const onError = (e) => {
+      clearSafety();
       setError(e);
       setView('error');
     };
@@ -51,12 +61,15 @@ export default function App() {
     socket.on('intent', onIntent);
     socket.on('candidates', onCandidates);
     socket.on('shortlist', onShortlist);
+    socket.on('expertPicks', onExpertPicks);
     socket.on('error', onError);
     return () => {
       socket.off('intent', onIntent);
       socket.off('candidates', onCandidates);
       socket.off('shortlist', onShortlist);
+      socket.off('expertPicks', onExpertPicks);
       socket.off('error', onError);
+      clearSafety();
     };
   }, []);
 
@@ -67,7 +80,14 @@ export default function App() {
     setError(null);
     setStep('understanding');
     setView('loading');
+    // socket.io buffers this until connected, so it's safe even on a cold backend.
     socket.emit('recommend', { text, chips });
+    // Safety net: never hang on the loader forever.
+    clearSafety();
+    safetyTimer.current = setTimeout(() => {
+      setError({ message: 'This is taking longer than usual — the server may be waking up. Please try again.' });
+      setView('error');
+    }, 90000);
   }, []);
 
   const reset = useCallback(() => {
